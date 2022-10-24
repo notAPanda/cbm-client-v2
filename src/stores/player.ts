@@ -6,8 +6,8 @@ import { formatTime } from '@/services/helper'
 import { Howl } from 'howler'
 
 export type PlayerState = {
-  playlist: Album
-  track: Track
+  playlist: Album | null
+  track: Track | null
   playing: boolean
   duration: string
   seek: string
@@ -21,8 +21,8 @@ export type PlayerState = {
 export const usePlayerStore = defineStore('player', {
   state: () =>
     ({
-      playlist: {},
-      track: {},
+      playlist: null,
+      track: null,
       playing: false,
       duration: '00:00',
       seek: '00:00',
@@ -33,19 +33,49 @@ export const usePlayerStore = defineStore('player', {
       sound: null,
     } as PlayerState),
   getters: {
-    nextTrack(state) {
+    nextTrack(state): Track | null {
+      if (!state.playlist) {
+        return null
+      }
+
+      if (!state.track) {
+        return null
+      }
+
+      const currentTrackId = state.track.id
+
       const index: number | null =
         _.findIndex(state.playlist.tracks, (track: Track) => {
-          return track.id === state.track.id
+          return track.id === currentTrackId
         }) + 1
-      return _.get(this.playlist, `tracks.${index}`, null)
+
+      if (index) {
+        return state.playlist.tracks[index]
+      }
+
+      return null
     },
     previousTrack(state) {
+      if (!state.playlist) {
+        return null
+      }
+
+      if (!state.track) {
+        return null
+      }
+
+      const currentTrackId = state.track.id
+
       const index: number | null =
         _.findIndex(state.playlist.tracks, (track: Track) => {
-          return track.id === this.track.id
+          return track.id === currentTrackId
         }) - 1
-      return _.get(state.playlist, `tracks.${index}`, null)
+
+      if (index) {
+        return state.playlist.tracks[index]
+      }
+
+      return null
     },
   },
   actions: {
@@ -108,6 +138,16 @@ export const usePlayerStore = defineStore('player', {
         this.setPlaying(true)
       }
     },
+    playNext() {
+      if (this.nextTrack) {
+        this.play({ track: this.nextTrack })
+      }
+    },
+    playPrevious() {
+      if (this.previousTrack) {
+        this.play({ track: this.previousTrack })
+      }
+    },
     play({ playlist, track }: { playlist?: Album; track?: Track }) {
       if (this.sound && this.sound.playing()) {
         this.sound.stop()
@@ -130,7 +170,6 @@ export const usePlayerStore = defineStore('player', {
             this.setPlaying(true)
             this.setDuration(this.sound.duration())
             this.setSeekInterval()
-            console.log(this.nextTrack)
           },
           onpause: () => {
             this.setPlaying(false)
